@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>MyApp - Login</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <!-- Local Bootstrap CSS -->
+  <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+  <!-- Bootstrap Icons CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      background: white;
+      font-family: 'Segoe UI', system-ui, 'Roboto', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+    }
+    .login-card {
+      max-width: 450px;
+      margin: 0 auto;
+      border-radius: 20px;
+      border: none;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+    }
+    .form-control, .input-group .btn {
+      border-radius: 10px;
+    }
+    .form-control:focus {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.25);
+    }
+    .btn-primary {
+      border-radius: 50px;
+      padding: 10px;
+      font-weight: 600;
+    }
+    .btn-primary:disabled {
+      opacity: 0.7;
+    }
+    .password-strength {
+      font-size: 0.75rem;
+      margin-top: 5px;
+    }
+    .strength-weak { color: #dc3545; }
+    .strength-medium { color: #ffc107; }
+    .strength-strong { color: #198754; }
+    a { text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-5">
+      <div class="login-card p-4 p-md-5">
+        <div class="text-center mb-4">
+          <h1 class="display-6 fw-bold text-dark">Welcome Back</h1>
+          <p class="text-muted">Sign in to continue</p>
+        </div>
+
+        <form id="loginForm">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email Address</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="bi bi-envelope"></i></span>
+              <input type="email" class="form-control" id="email" placeholder="name@example.com" required>
+            </div>
+            <div class="invalid-feedback" id="emailFeedback">Valid email is required.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+              <input type="password" class="form-control" id="password" placeholder="••••••••" required>
+              <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+            <div class="password-strength" id="passwordStrength"></div>
+            <div class="invalid-feedback" id="passwordFeedback">Password is required.</div>
+          </div>
+
+          <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="rememberMe">
+              <label class="form-check-label" for="rememberMe">Remember me</label>
+            </div>
+              <a href="forgot-password.html" class="small">Forgot password?</a>
+            </div>
+
+          <button type="submit" class="btn btn-primary w-100" id="loginSubmitBtn">
+            <i class="bi bi-box-arrow-in-right"></i> Log In
+          </button>
+        </form>
+
+        <hr class="my-4">
+        <p class="text-center mb-0">
+          Don't have an account? <a href="register.html" class="fw-bold">Create account</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // ========================
+  // SUPABASE CONFIGURATION (TAMA NA ITO)
+  // ========================
+  const SUPABASE_URL = 'https://utwmiawfefacrpqytqfj.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_Uj30MGKdw0X4JPoXozQtKQ_DwhZp7tL';
+  const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ========================
+  // TOGGLE PASSWORD
+  // ========================
+  const toggleBtn = document.getElementById('togglePasswordBtn');
+  const passwordInput = document.getElementById('password');
+  const toggleIcon = toggleBtn.querySelector('i');
+  toggleBtn.addEventListener('click', () => {
+    const type = passwordInput.type === 'password' ? 'text' : 'password';
+    passwordInput.type = type;
+    toggleIcon.classList.toggle('bi-eye');
+    toggleIcon.classList.toggle('bi-eye-slash');
+  });
+
+  // ========================
+  // PASSWORD STRENGTH
+  // ========================
+  const strengthDiv = document.getElementById('passwordStrength');
+  passwordInput.addEventListener('input', function () {
+    const val = this.value;
+    if (val.length === 0) { strengthDiv.innerHTML = ''; return; }
+    let strength = '', className = '';
+    if (val.length < 6) { strength = 'Weak'; className = 'strength-weak'; }
+    else if (val.length >= 6 && val.length < 10 && /[A-Z]/.test(val) && /[0-9]/.test(val)) {
+      strength = 'Medium'; className = 'strength-medium';
+    } else if (val.length >= 10 && /[A-Z]/.test(val) && /[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)) {
+      strength = 'Strong'; className = 'strength-strong';
+    } else { strength = 'Medium'; className = 'strength-medium'; }
+    strengthDiv.innerHTML = `Password strength: <span class="${className}">${strength}</span>`;
+  });
+
+  // ========================
+  // LOGIN FORM HANDLER
+  // ========================
+  const loginForm = document.getElementById('loginForm');
+  const emailInput = document.getElementById('email');
+  const loginBtn = document.getElementById('loginSubmitBtn');
+
+  emailInput.addEventListener('input', function () {
+    const email = this.value;
+    const isValid = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/.test(email);
+    if (!isValid && email.length > 0) {
+      this.classList.add('is-invalid');
+      document.getElementById('emailFeedback').style.display = 'block';
+    } else {
+      this.classList.remove('is-invalid');
+      document.getElementById('emailFeedback').style.display = 'none';
+    }
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    let isValid = true;
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !/^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/.test(email)) {
+      emailInput.classList.add('is-invalid');
+      document.getElementById('emailFeedback').style.display = 'block';
+      isValid = false;
+    } else {
+      emailInput.classList.remove('is-invalid');
+    }
+
+    if (!password) {
+      passwordInput.classList.add('is-invalid');
+      document.getElementById('passwordFeedback').style.display = 'block';
+      isValid = false;
+    } else {
+      passwordInput.classList.remove('is-invalid');
+    }
+
+    if (!isValid) return;
+
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Logging in...';
+
+    try {
+      const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      if (document.getElementById('rememberMe').checked) {
+        localStorage.setItem('savedEmail', email);
+      } else {
+        localStorage.removeItem('savedEmail');
+      }
+
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert('Login failed: ' + err.message);
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> Log In';
+    }
+  });
+
+  // Remember Me
+  const savedEmail = localStorage.getItem('savedEmail');
+  if (savedEmail) {
+    emailInput.value = savedEmail;
+    document.getElementById('rememberMe').checked = true;
+  }
+  emailInput.addEventListener('input', () => {
+    if (document.getElementById('rememberMe').checked) {
+      localStorage.setItem('savedEmail', emailInput.value);
+    }
+  });
+
+  // ========================
+  // SERVICE WORKER (PWA) - pansamantalang tanggalin para iwas error
+  // ========================
+  // if ('serviceWorker' in navigator) {
+  //   window.addEventListener('load', () => {
+  //     navigator.serviceWorker.register('service-worker.js')
+  //       .then(reg => console.log('SW registered:', reg))
+  //       .catch(err => console.error('SW reg failed:', err));
+  //   });
+  // }
+</script>
+</body>
+</html>
